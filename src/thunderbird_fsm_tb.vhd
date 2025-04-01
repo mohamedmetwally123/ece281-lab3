@@ -57,28 +57,87 @@ end thunderbird_fsm_tb;
 architecture test_bench of thunderbird_fsm_tb is 
 	
 	component thunderbird_fsm is 
---	  port(
-		
---	  );
+	  port(
+	    i_clk, i_reset  : in    std_logic;
+        i_left, i_right : in    std_logic;
+        o_lights_L      : out   std_logic_vector(2 downto 0);
+        o_lights_R      : out   std_logic_vector(2 downto 0)
+	  );
 	end component thunderbird_fsm;
 
 	-- test I/O signals
 	
+	--Inputs
+	signal w_clk, w_reset: std_logic:= '0';
+	signal w_left, w_right: std_logic:= '0';
+	
+	--Outputs
+	signal w_lights_L, w_lights_R: std_logic_vector (2 downto 0):= "000";
+	
 	-- constants
+	constant k_clk_period: time:= 10 ns;
 	
 	
 begin
 	-- PORT MAPS ----------------------------------------
-	
+	uut: thunderbird_fsm port map(
+	i_clk => w_clk,
+	i_reset => w_reset,
+	i_left => w_left,
+	i_right => w_right,
+	o_lights_L => w_lights_L,
+	o_lights_R => w_lights_R
+	);
 	-----------------------------------------------------
 	
 	-- PROCESSES ----------------------------------------	
     -- Clock process ------------------------------------
-    
+    clock_proc: process
+    begin
+        w_clk <= '0';
+        wait for k_clk_period/2;
+        w_clk <= '1';
+        wait for k_clk_period/2; 
+    end process;
 	-----------------------------------------------------
 	
 	-- Test Plan Process --------------------------------
-	
+	sim_process: process
+	begin
+	--As we hit reset, all the lights should be turned off
+	w_reset <= '1';
+	wait for k_clk_period*1;
+	   assert w_lights_L <="000" and w_lights_R <= "000" report "bad reset" severity failure;
+	--Turn the reset off
+	w_reset <= '0';
+	wait for k_clk_period*1;
+    
+    --Hit the left blinker, this should turn on the first light, followed by 1st and 2nd, and finally all of them. 
+    --The change will happen every rising edge
+    w_left <= '1'; 
+    wait for k_clk_period*1;
+	   assert w_lights_L ="001" report "First light should be on" severity failure;
+	wait for k_clk_period*1;
+	   assert w_lights_L ="011" report "First and second light should be on" severity failure;
+	wait for k_clk_period*1;
+	   assert w_lights_L ="111" report "First, second, and third light should be on" severity failure;
+	wait for k_clk_period*1;
+	   assert w_lights_L ="000" report "All of them should be off" severity failure;
+	   
+	--Reset and then turn the right blinker on. this should turn on the first light, followed by 1st and 2nd,
+	-- and finally all of them. The change will happen every rising edge
+	w_reset <= '1'; w_left <= '0'; w_right <= '1';
+	wait for k_clk_period*1;
+	   assert w_lights_R ="000" report "Bad Reset" severity failure;
+	w_reset <= '0'; wait for k_clk_period*1;
+	   assert w_lights_R ="001" report "First light should be on" severity failure;
+	wait for k_clk_period*1;
+	   assert w_lights_R ="011" report "First and second light should be on" severity failure;
+	wait for k_clk_period*1;
+	   assert w_lights_R ="111" report "All of them should be on" severity failure;
+    wait for k_clk_period*1;
+	   assert w_lights_R ="000" report "All of them should be off" severity failure;   
+	wait;
 	-----------------------------------------------------	
-	
-end test_bench;
+	end process;
+end;
